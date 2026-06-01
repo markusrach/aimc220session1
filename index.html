@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Cockpit. CMO vs CFO.</title>
+<style>
+  :root {
+    --black: #111; --grey-1: #333; --grey-2: #666; --grey-3: #999;
+    --grey-4: #ccc; --grey-5: #eee; --grey-6: #f7f7f7;
+    --good: #1f6b1f; --bad: #a02020; --warn: #b07000;
+    --cmo: #2d5b9e; --cfo: #4a4a4a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--grey-6); color: var(--black);
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  .stage { max-width: 1300px; margin: 0 auto; padding: 18px 14px 60px; }
+  header.brand {
+    border-bottom: 1px solid var(--grey-4);
+    padding: 14px 0 10px; margin-bottom: 16px;
+  }
+  header.brand h1 {
+    font-size: 24px; font-weight: 800; margin: 0; letter-spacing: -0.5px;
+  }
+  header.brand .sub {
+    color: var(--grey-2); font-size: 13px; margin-top: 4px;
+  }
+
+  /* SCREEN 1: INTRO */
+  .intro-card {
+    background: white; border: 1px solid var(--grey-4);
+    padding: 30px 32px; max-width: 720px; margin: 30px auto;
+  }
+  .intro-card h2 { font-size: 26px; font-weight: 800; margin: 0 0 12px; }
+  .intro-card p { font-size: 14px; color: var(--grey-1); margin: 0 0 12px; }
+  .intro-card .actions {
+    display: flex; justify-content: flex-end; margin-top: 24px;
+  }
+  button.primary {
+    background: var(--black); color: white; border: none;
+    padding: 12px 24px; font-size: 14px; font-weight: 700;
+    font-family: inherit; cursor: pointer; letter-spacing: 0.3px;
+  }
+  button.primary:hover { background: #333; }
+  button.primary:disabled {
+    background: var(--grey-4); cursor: not-allowed;
+  }
+  button.secondary {
+    background: white; color: var(--black); border: 1px solid var(--black);
+    padding: 12px 22px; font-size: 14px; font-weight: 700;
+    font-family: inherit; cursor: pointer;
+  }
+
+  /* SCREEN 2: GAME */
+  .game-grid {
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    gap: 16px;
+    margin-top: 18px;
+  }
+  .dropzone {
+    background: white; border: 2px dashed var(--grey-3);
+    border-radius: 8px; padding: 12px;
+    min-height: 540px;
+    transition: all 0.15s;
+    display: flex; flex-direction: column;
+  }
+  .dropzone.dragover {
+    border-color: var(--black);
+    background: #fafafa;
+  }
+  .dropzone .label {
+    text-align: center; font-weight: 800; font-size: 16px;
+    letter-spacing: 1px; margin-bottom: 8px;
+  }
+  .dropzone .role {
+    text-align: center; font-size: 11px; color: var(--grey-2);
+    margin-bottom: 8px; font-style: italic;
+  }
+  .dropzone svg.character {
+    display: block; margin: 0 auto 10px; height: 130px;
+  }
+  .dropzone .target-info {
+    text-align: center; font-size: 11px;
+    color: var(--grey-2); margin-bottom: 10px;
+  }
+  .dropzone .target-info b { color: var(--black); }
+  .pool {
+    background: white; border: 1px solid var(--grey-4);
+    border-radius: 8px; padding: 14px;
+    min-height: 540px;
+  }
+  .pool h3 {
+    margin: 0 0 12px; font-size: 13px;
+    color: var(--grey-2); text-transform: uppercase; letter-spacing: 2px;
+    text-align: center;
+  }
+  .metrics-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  .metric {
+    background: var(--grey-6); border: 1px solid var(--grey-4);
+    border-radius: 6px; padding: 9px 10px;
+    font-size: 12px; font-weight: 600;
+    cursor: grab; user-select: none;
+    transition: all 0.1s;
+    text-align: center;
+    color: var(--grey-1);
+  }
+  .metric:hover { border-color: var(--black); background: white; }
+  .metric:active { cursor: grabbing; }
+  .metric.dragging { opacity: 0.4; }
+  .metric.placed {
+    background: white; border-color: var(--good);
+    color: var(--good); font-weight: 700;
+    position: relative;
+  }
+  .metric.placed::after {
+    content: "✓"; position: absolute; right: 6px; top: 50%;
+    transform: translateY(-50%); color: var(--good); font-weight: 800;
+  }
+  .metric.both {
+    border-color: var(--good); border-style: solid;
+    background: linear-gradient(to right, #f1faf1, #fff);
+  }
+  @keyframes shake {
+    0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);}
+    50%{transform:translateX(6px);} 75%{transform:translateX(-4px);}
+  }
+  .metric.wrong-flash {
+    border-color: var(--bad); background: #faf1f1;
+    color: var(--bad);
+    animation: shake 0.35s;
+  }
+  .dropzone .placed-list {
+    flex: 1; display: flex; flex-direction: column; gap: 6px;
+    overflow-y: auto;
+  }
+
+  /* PROGRESS */
+  .progress-bar {
+    display: flex; align-items: center; gap: 14px;
+    margin: 18px 0; background: white;
+    border: 1px solid var(--grey-4); border-radius: 8px;
+    padding: 12px 18px;
+  }
+  .progress-bar .label {
+    font-weight: 700; font-size: 13px; color: var(--grey-1);
+  }
+  .progress-bar .bar-track {
+    flex: 1; background: var(--grey-5); height: 8px; border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-bar .bar-fill {
+    height: 100%; background: var(--good); transition: width 0.3s;
+  }
+  .progress-bar .count {
+    font-weight: 800; font-size: 14px; min-width: 60px; text-align: right;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-150%);
+    background: white; border: 2px solid var(--bad);
+    color: var(--black); padding: 16px 22px;
+    border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    z-index: 1000; max-width: 560px; width: 90%;
+    transition: transform 0.25s ease-out;
+    font-size: 13px;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast .toast-title {
+    font-weight: 800; color: var(--bad); margin-bottom: 6px;
+    text-transform: uppercase; font-size: 11px; letter-spacing: 1px;
+  }
+  .toast .toast-metric { font-weight: 700; margin-bottom: 4px; }
+
+  /* CONFETTI */
+  .confetti-piece {
+    position: fixed; width: 8px; height: 8px;
+    pointer-events: none; z-index: 999;
+    will-change: transform;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* COMPLETION SCREEN */
+  .complete-card {
+    background: white; border: 1px solid var(--grey-4);
+    padding: 30px; text-align: center; margin: 30px auto;
+    max-width: 720px;
+  }
+  .complete-card h2 {
+    font-size: 32px; font-weight: 800; margin: 0 0 12px;
+  }
+  .complete-card p { font-size: 14px; color: var(--grey-1); margin: 0 0 16px; }
+
+  /* PYRAMID SCREEN */
+  .pyramid-stage {
+    background: white; border: 1px solid var(--grey-4);
+    padding: 24px; margin-top: 20px;
+  }
+  .pyramid-stage h2 {
+    margin: 0 0 6px; font-size: 22px; font-weight: 800;
+  }
+  .pyramid-stage .lead {
+    color: var(--grey-2); font-style: italic; margin-bottom: 18px; font-size: 13px;
+  }
+  .pyramid {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px; max-width: 900px; margin: 0 auto;
+  }
+  .level {
+    display: flex; align-items: center; padding: 14px 18px;
+    color: white; font-size: 13px;
+    border: 1px solid black;
+    width: 100%;
+  }
+  .level .level-tag {
+    font-weight: 800; letter-spacing: 1px; width: 80px;
+    font-size: 11px;
+  }
+  .level .level-name {
+    font-weight: 700; font-size: 16px; min-width: 200px;
+  }
+  .level .level-eg {
+    flex: 1; font-size: 11px; opacity: 0.85;
+  }
+  .level .level-stat {
+    font-size: 11px; font-weight: 700; margin-left: 12px; opacity: 0.9;
+  }
+  .pyramid .l1 { background: #c8c8c8; color: black; width: 100%; }
+  .pyramid .l2 { background: #999; color: white; width: 85%; }
+  .pyramid .l3 { background: #555; color: white; width: 70%; }
+  .pyramid .l4 { background: #222; color: white; width: 55%; }
+  .takeaway {
+    margin-top: 22px; padding: 18px 22px;
+    background: #fcfae8; border-left: 4px solid var(--black);
+    font-size: 14px;
+  }
+
+  footer {
+    text-align: center; color: var(--grey-3); font-size: 11px;
+    padding: 18px 0; border-top: 1px solid var(--grey-4); margin-top: 26px;
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <header class="brand">
+    <h1>The Cockpit. CMO vs CFO.</h1>
+    <div class="sub">AIMC 220  .  Session 1 recap  .  Drag each metric to the right dashboard.</div>
+  </header>
+
+  <!-- ====================== SCREEN 1: INTRO ====================== -->
+  <div id="screen-intro" class="intro-card">
+    <h2>You learned this in class. Let's see if it stuck.</h2>
+    <p>Twenty marketing metrics on your screen. A CMO on the left, a CFO on the right. Each one has a different idea of what belongs on the dashboard.</p>
+    <p>Drag each metric to the dashboard where it belongs. Most metrics belong on NEITHER and should stay in the middle pool.</p>
+    <p><strong>The rule from class:</strong> the CMO needs five metrics that mix operational, behavioural, and asset levels. The CFO wants three metrics that link to firm value.</p>
+    <p>Correct placements get confetti. Wrong placements get a quick explainer and snap back to the pool.</p>
+    <div class="actions">
+      <button class="primary" onclick="startGame()">Start the game</button>
+    </div>
+  </div>
+
+  <!-- ====================== SCREEN 2: GAME ====================== -->
+  <div id="screen-game" class="hidden">
+    <div class="progress-bar">
+      <span class="label">Correctly placed:</span>
+      <div class="bar-track"><div id="progress-fill" class="bar-fill" style="width: 0%"></div></div>
+      <span id="progress-count" class="count">0 / 8</span>
+    </div>
+
+    <div class="game-grid">
+
+      <!-- CMO ZONE -->
+      <div class="dropzone" id="zone-cmo" data-zone="CMO"
+           ondragover="onDragOver(event, 'cmo')"
+           ondragleave="onDragLeave(event, 'cmo')"
+           ondrop="onDrop(event, 'CMO')">
+        <div class="label">CMO</div>
+        <div class="role">Chief Marketing Officer</div>
+        <!-- Stylized SVG: a creative-type figure with a megaphone -->
+        <svg class="character" viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg">
+          <!-- Head -->
+          <circle cx="60" cy="32" r="18" fill="#f4d6b0" stroke="#222" stroke-width="2"/>
+          <!-- Hair (curly) -->
+          <path d="M42 28 Q43 14 60 14 Q77 14 78 28 Q73 22 70 22 Q66 18 60 18 Q54 18 50 22 Q47 22 42 28 Z" fill="#5a3825" stroke="#222" stroke-width="1.5"/>
+          <!-- Eyes -->
+          <circle cx="54" cy="32" r="1.6" fill="#222"/>
+          <circle cx="66" cy="32" r="1.6" fill="#222"/>
+          <!-- Smile -->
+          <path d="M53 39 Q60 44 67 39" fill="none" stroke="#222" stroke-width="1.8" stroke-linecap="round"/>
+          <!-- Body (colorful shirt - creative type) -->
+          <path d="M38 60 L82 60 L86 110 L34 110 Z" fill="#e8704a" stroke="#222" stroke-width="2"/>
+          <!-- Neck -->
+          <rect x="56" y="48" width="8" height="12" fill="#f4d6b0" stroke="#222" stroke-width="2"/>
+          <!-- Pattern on shirt (stripes) -->
+          <line x1="42" y1="70" x2="80" y2="70" stroke="#fff" stroke-width="1.5" opacity="0.7"/>
+          <line x1="40" y1="85" x2="82" y2="85" stroke="#fff" stroke-width="1.5" opacity="0.7"/>
+          <!-- Arms raised holding megaphone -->
+          <line x1="38" y1="62" x2="22" y2="50" stroke="#222" stroke-width="3" stroke-linecap="round"/>
+          <line x1="82" y1="62" x2="98" y2="55" stroke="#222" stroke-width="3" stroke-linecap="round"/>
+          <!-- Megaphone -->
+          <path d="M96 48 L114 42 L114 70 L96 64 Z" fill="#ffcb05" stroke="#222" stroke-width="2"/>
+          <line x1="96" y1="48" x2="96" y2="64" stroke="#222" stroke-width="2"/>
+          <!-- Sound waves -->
+          <path d="M118 50 Q122 56 118 62" fill="none" stroke="#e8704a" stroke-width="1.5"/>
+          <!-- Star/idea sparkle -->
+          <path d="M20 42 L22 47 L27 47 L23 50 L25 55 L20 52 L15 55 L17 50 L13 47 L18 47 Z" fill="#ffcb05" stroke="#222" stroke-width="1.5"/>
+        </svg>
+        <div class="target-info">Pick <b>5</b> metrics for the CMO dashboard</div>
+        <div class="placed-list" id="placed-CMO"></div>
+      </div>
+
+      <!-- METRIC POOL -->
+      <div class="pool">
+        <h3>The metrics</h3>
+        <div class="metrics-grid" id="metric-pool"></div>
+      </div>
+
+      <!-- CFO ZONE -->
+      <div class="dropzone" id="zone-cfo" data-zone="CFO"
+           ondragover="onDragOver(event, 'cfo')"
+           ondragleave="onDragLeave(event, 'cfo')"
+           ondrop="onDrop(event, 'CFO')">
+        <div class="label">CFO</div>
+        <div class="role">Chief Financial Officer</div>
+        <!-- Stylized SVG: a serious financial-type figure with calculator and glasses -->
+        <svg class="character" viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg">
+          <!-- Head -->
+          <circle cx="60" cy="32" r="18" fill="#f4d6b0" stroke="#222" stroke-width="2"/>
+          <!-- Hair (combed back) -->
+          <path d="M44 24 Q43 14 60 12 Q78 14 77 26 Q74 18 60 18 Q47 19 44 24 Z" fill="#3a3024" stroke="#222" stroke-width="1.5"/>
+          <!-- Glasses -->
+          <circle cx="53" cy="32" r="4.5" fill="none" stroke="#222" stroke-width="1.8"/>
+          <circle cx="67" cy="32" r="4.5" fill="none" stroke="#222" stroke-width="1.8"/>
+          <line x1="57.5" y1="32" x2="62.5" y2="32" stroke="#222" stroke-width="1.5"/>
+          <!-- Eyes behind glasses -->
+          <circle cx="53" cy="32" r="1.2" fill="#222"/>
+          <circle cx="67" cy="32" r="1.2" fill="#222"/>
+          <!-- Serious mouth (flat line) -->
+          <line x1="54" y1="41" x2="66" y2="41" stroke="#222" stroke-width="1.8" stroke-linecap="round"/>
+          <!-- Neck -->
+          <rect x="56" y="48" width="8" height="12" fill="#f4d6b0" stroke="#222" stroke-width="2"/>
+          <!-- Body (suit - dark, formal) -->
+          <path d="M38 60 L82 60 L86 110 L34 110 Z" fill="#2a3552" stroke="#222" stroke-width="2"/>
+          <!-- Suit lapels (V shape) -->
+          <path d="M56 60 L60 80 L64 60 L60 78 Z" fill="#1a2540" stroke="#222" stroke-width="1.5"/>
+          <!-- Tie -->
+          <path d="M58 72 L62 72 L63 95 L60 100 L57 95 Z" fill="#a02020" stroke="#222" stroke-width="1.5"/>
+          <!-- Arms straight at sides -->
+          <line x1="38" y1="62" x2="32" y2="100" stroke="#222" stroke-width="3" stroke-linecap="round"/>
+          <line x1="82" y1="62" x2="88" y2="100" stroke="#222" stroke-width="3" stroke-linecap="round"/>
+          <!-- Calculator in hand -->
+          <rect x="22" y="92" width="20" height="28" fill="#999" stroke="#222" stroke-width="2"/>
+          <rect x="25" y="95" width="14" height="6" fill="#1a3a1a" stroke="#222" stroke-width="1"/>
+          <!-- Calculator buttons -->
+          <circle cx="28" cy="106" r="1.5" fill="#222"/>
+          <circle cx="33" cy="106" r="1.5" fill="#222"/>
+          <circle cx="38" cy="106" r="1.5" fill="#222"/>
+          <circle cx="28" cy="112" r="1.5" fill="#222"/>
+          <circle cx="33" cy="112" r="1.5" fill="#222"/>
+          <circle cx="38" cy="112" r="1.5" fill="#222"/>
+        </svg>
+        <div class="target-info">Pick <b>3</b> metrics for the CFO dashboard</div>
+        <div class="placed-list" id="placed-CFO"></div>
+      </div>
+
+    </div>
+
+    <div style="margin-top: 18px; text-align: center;">
+      <button id="btn-reset" class="secondary" onclick="resetGame()">Reset</button>
+    </div>
+  </div>
+
+  <!-- ====================== SCREEN 3: COMPLETION + PYRAMID ====================== -->
+  <div id="screen-complete" class="hidden">
+    <div class="complete-card">
+      <h2 id="complete-title">All eight placed.</h2>
+      <p id="complete-sub">The CMO and CFO agree on one metric. Notice which one.</p>
+      <button class="primary" onclick="showPyramid()">Reveal the metric pyramid</button>
+    </div>
+  </div>
+
+  <div id="screen-pyramid" class="hidden">
+    <div class="pyramid-stage">
+      <h2>The four level metric hierarchy</h2>
+      <div class="lead">Where you sit on the pyramid is where you sit on the org chart.</div>
+      <div class="pyramid">
+        <div class="level l4">
+          <span class="level-tag">LEVEL 4</span>
+          <span class="level-name">Valuation outcomes</span>
+          <span class="level-eg">Revenue . Profit . Cash flow . Market cap</span>
+        </div>
+        <div class="level l3">
+          <span class="level-tag">LEVEL 3</span>
+          <span class="level-name">Asset metrics</span>
+          <span class="level-eg">CLV . LTV:CAC . NPS . Brand consideration . Market share</span>
+        </div>
+        <div class="level l2">
+          <span class="level-tag">LEVEL 2</span>
+          <span class="level-name">Behavioural metrics</span>
+          <span class="level-eg">Customer retention . Churn rate . Repeat purchase . CAC</span>
+        </div>
+        <div class="level l1">
+          <span class="level-tag">LEVEL 1</span>
+          <span class="level-name">Operational metrics</span>
+          <span class="level-eg">CPM . CPC . CTR . ROAS . Impressions . Reach . Email open . Social engagement</span>
+        </div>
+      </div>
+      <div class="takeaway">
+        <strong>Read this slowly.</strong> The lower the level, the easier the metric is to report and the less it tells you about whether the business is growing. The higher the level, the harder it is to measure and the more it matters. The smart CMO trades up the pyramid. The CFO already sits at the top.
+      </div>
+      <div style="margin-top: 24px; text-align: center;">
+        <button class="secondary" onclick="restart()">Play again</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>Prof. Dr. Markus Rach</footer>
+</div>
+
+<script>
+// ============================================================
+// METRIC DATA
+// ============================================================
+// belongsTo: 'CMO' | 'CFO' | 'BOTH' | 'NEITHER'
+const METRICS = [
+  // Level 1 — operational (12 in pool but only ROAS belongs on CMO)
+  { id: 'impressions', name: 'Impressions', level: 1, belongsTo: 'NEITHER',
+    why: 'Impressions count how often the ad served. They say nothing about who saw it or whether they bought. The CMO and CFO both ignore this number.' },
+  { id: 'reach', name: 'Reach', level: 1, belongsTo: 'NEITHER',
+    why: 'Reach tells you the unique audience the campaign hit. Useful for media planning but not a board-level metric. No empirical link to firm value.' },
+  { id: 'cpm', name: 'CPM', level: 1, belongsTo: 'NEITHER',
+    why: 'Cost per thousand impressions is pure media-buying efficiency. The CMO checks it tactically; the CFO never sees it.' },
+  { id: 'cpc', name: 'CPC', level: 1, belongsTo: 'NEITHER',
+    why: 'Cost per click is paid media optimisation. Same family as CPM. Tactical, not strategic.' },
+  { id: 'ctr', name: 'CTR', level: 1, belongsTo: 'NEITHER',
+    why: 'Click-through rate measures ad creative pull. It tells you if the ad was clickable, not if it was profitable.' },
+  { id: 'conv_rate', name: 'Conversion rate', level: 1, belongsTo: 'NEITHER',
+    why: 'Conversion rate is funnel efficiency at one step. Tactically useful, easy to game, depends entirely on how you define the funnel.' },
+  { id: 'roas', name: 'ROAS', level: 1, belongsTo: 'BOTH',
+    why: 'Return on ad spend works on either dashboard. The CMO uses it for operational discipline (did the spend pay back). The CFO uses it as a check on marketing efficiency. One of the cleanest cross-functional metrics.' },
+  { id: 'email_open', name: 'Email open rate', level: 1, belongsTo: 'NEITHER',
+    why: 'Email open rate has been inflated since Apple Mail privacy. Even before that it was a CRM-team tactical metric, never a board metric.' },
+  { id: 'social_eng', name: 'Social engagement', level: 1, belongsTo: 'NEITHER',
+    why: 'Likes, shares, comments. The classic vanity metric. Correlates weakly with sales and almost not at all with firm value.' },
+
+  // Level 2 — behavioural
+  { id: 'cac', name: 'CAC', level: 2, belongsTo: 'CMO',
+    why: 'Customer acquisition cost belongs on the CMO dashboard. It is the cost side of the unit-economics equation and the denominator in LTV:CAC.' },
+  { id: 'retention', name: 'Customer retention', level: 2, belongsTo: 'CMO',
+    why: 'Retention rate belongs on the CMO dashboard. It is the leading behavioural indicator of recurring revenue and predicts churn.' },
+  { id: 'churn', name: 'Churn rate', level: 2, belongsTo: 'NEITHER',
+    why: 'Churn is just 1 minus retention. Same information, opposite framing. The CMO usually picks one, not both. Retention is the more common choice.' },
+  { id: 'repeat', name: 'Repeat purchase rate', level: 2, belongsTo: 'NEITHER',
+    why: 'Repeat purchase rate is a behavioural cousin of retention. Strong signal for ecommerce, but redundant once retention is on the dashboard.' },
+
+  // Level 3 — asset
+  { id: 'clv', name: 'CLV', level: 3, belongsTo: 'BOTH',
+    why: 'Customer lifetime value works on either dashboard. The CFO sees it as the customer-base asset value. The CMO sees it as proof the brand creates loyal customers. The metric both sides can agree on.' },
+  { id: 'ltv_cac', name: 'LTV:CAC', level: 3, belongsTo: 'BOTH',
+    why: 'The LTV:CAC ratio works on either dashboard. The CFO reads it as unit economics; the CMO reads it as marketing productivity. Above 3x is healthy on either side.' },
+  { id: 'nps', name: 'NPS', level: 3, belongsTo: 'CMO',
+    why: 'Net Promoter Score belongs on the CMO dashboard. It is a Level 3 asset metric and a leading indicator of word of mouth, when measured at brand level.' },
+  { id: 'csat', name: 'CSAT', level: 3, belongsTo: 'NEITHER',
+    why: 'CSAT measures transactional satisfaction. Useful for service teams but a weaker firm-value predictor than NPS or brand consideration.' },
+  { id: 'brand_aware', name: 'Brand awareness', level: 3, belongsTo: 'NEITHER',
+    why: 'Brand awareness measures whether consumers know you exist. Useful in a new category. For mature brands, consideration is the sharper predictor of revenue.' },
+  { id: 'brand_consider', name: 'Brand consideration', level: 3, belongsTo: 'CMO',
+    why: 'Brand consideration belongs on the CMO dashboard. It measures whether consumers would consider buying from you — a Level 3 asset closely tied to future revenue.' },
+  { id: 'market_share', name: 'Market share', level: 3, belongsTo: 'BOTH',
+    why: 'Market share works on either dashboard. The CFO reads it as competitive position and pricing power. The CMO reads it as the outcome they are hired to grow.' },
+];
+
+// Total correct = 8 (5 CMO-only + 2 CFO-only + 1 BOTH)
+const TOTAL_CORRECT = 8;
+
+// State
+const state = {
+  placements: {}, // metricId -> 'CMO' | 'CFO'
+  draggedId: null,
+};
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderPool() {
+  const pool = document.getElementById('metric-pool');
+  pool.innerHTML = '';
+  METRICS.forEach(m => {
+    if (state.placements[m.id]) return; // skip already placed
+    const div = document.createElement('div');
+    div.className = 'metric';
+    div.draggable = true;
+    div.dataset.id = m.id;
+    div.textContent = m.name;
+    div.addEventListener('dragstart', onDragStart);
+    div.addEventListener('dragend', onDragEnd);
+    pool.appendChild(div);
+  });
+}
+
+function renderPlaced(zone) {
+  const list = document.getElementById('placed-' + zone);
+  list.innerHTML = '';
+  METRICS.forEach(m => {
+    if (state.placements[m.id] === zone) {
+      const div = document.createElement('div');
+      div.className = 'metric placed';
+      if (m.belongsTo === 'BOTH') div.classList.add('both');
+      div.textContent = m.name;
+      div.title = 'Click to return to the pool';
+      div.style.cursor = 'pointer';
+      div.onclick = () => unplaceMetric(m.id);
+      list.appendChild(div);
+    }
+  });
+}
+
+function updateProgress() {
+  const correct = Object.keys(state.placements).length;
+  document.getElementById('progress-count').textContent = correct + ' / ' + TOTAL_CORRECT;
+  document.getElementById('progress-fill').style.width =
+    Math.min(100, (correct / TOTAL_CORRECT) * 100) + '%';
+
+  if (correct >= TOTAL_CORRECT) {
+    setTimeout(showComplete, 800);
+  }
+}
+
+// ============================================================
+// DRAG-DROP
+// ============================================================
+function onDragStart(e) {
+  state.draggedId = e.target.dataset.id;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragEnd(e) {
+  e.target.classList.remove('dragging');
+  state.draggedId = null;
+  document.querySelectorAll('.dropzone').forEach(z => z.classList.remove('dragover'));
+}
+function onDragOver(e, zone) {
+  e.preventDefault();
+  document.getElementById('zone-' + zone).classList.add('dragover');
+}
+function onDragLeave(e, zone) {
+  document.getElementById('zone-' + zone).classList.remove('dragover');
+}
+function onDrop(e, targetZone) {
+  e.preventDefault();
+  document.querySelectorAll('.dropzone').forEach(z => z.classList.remove('dragover'));
+  if (!state.draggedId) return;
+  const metric = METRICS.find(m => m.id === state.draggedId);
+
+  // Check dashboard capacity
+  const MAX = { CMO: 5, CFO: 3 };
+  const currentCount = Object.values(state.placements).filter(z => z === targetZone).length;
+  if (currentCount >= MAX[targetZone]) {
+    showFullToast(targetZone);
+    return;
+  }
+
+  const isCorrect = (metric.belongsTo === targetZone) || (metric.belongsTo === 'BOTH');
+
+  if (isCorrect) {
+    state.placements[metric.id] = targetZone;
+    confettiBurst(targetZone);
+    renderPool();
+    renderPlaced(targetZone);
+    updateProgress();
+  } else {
+    // Flash the card red, show toast, snap back
+    const card = document.querySelector('.metric[data-id="' + metric.id + '"]');
+    if (card) {
+      card.classList.add('wrong-flash');
+      setTimeout(() => card.classList.remove('wrong-flash'), 400);
+    }
+    showToast(metric, targetZone);
+  }
+}
+
+function unplaceMetric(id) {
+  delete state.placements[id];
+  renderPool();
+  renderPlaced('CMO');
+  renderPlaced('CFO');
+  updateProgress();
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer = null;
+function showToast(metric, attemptedZone) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.style.borderColor = 'var(--bad)';
+  toast.innerHTML = `
+    <div class="toast-title" style="color: var(--bad);">Not on the ${attemptedZone} dashboard</div>
+    <div class="toast-metric">${metric.name}</div>
+    <div>${metric.why}</div>
+  `;
+  toast.classList.add('show');
+  toast.onclick = () => toast.classList.remove('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 7000);
+}
+
+function showFullToast(zone) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.style.borderColor = 'var(--warn)';
+  toast.innerHTML = `
+    <div class="toast-title" style="color: var(--warn);">${zone} dashboard is full</div>
+    <div>This dashboard already has its maximum number of metrics. Try the other side, or click a placed metric to send it back to the pool.</div>
+  `;
+  toast.classList.add('show');
+  toast.onclick = () => toast.classList.remove('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 5000);
+}
+
+// ============================================================
+// CONFETTI
+// ============================================================
+function confettiBurst(zone) {
+  const colors = ['#e8704a', '#ffcb05', '#2d5b9e', '#1f6b1f', '#a02020', '#7a3aa6'];
+  const zoneEl = document.getElementById('zone-' + zone.toLowerCase());
+  const rect = zoneEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + 80;
+
+  for (let i = 0; i < 30; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = (cx + (Math.random() - 0.5) * 80) + 'px';
+    piece.style.top = cy + 'px';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    const duration = 1.4 + Math.random() * 1.0;
+    const xOffset = (Math.random() - 0.5) * 200;
+    piece.style.animation = `confetti-fall ${duration}s ease-out forwards`;
+    piece.style.transform = `translate(${xOffset}px, 0)`;
+    if (Math.random() > 0.5) piece.style.borderRadius = '50%';
+    document.body.appendChild(piece);
+    setTimeout(() => piece.remove(), duration * 1000);
+  }
+}
+
+// ============================================================
+// SCREEN MANAGEMENT
+// ============================================================
+function startGame() {
+  document.getElementById('screen-intro').classList.add('hidden');
+  document.getElementById('screen-game').classList.remove('hidden');
+  renderPool();
+}
+
+function resetGame() {
+  state.placements = {};
+  renderPool();
+  renderPlaced('CMO');
+  renderPlaced('CFO');
+  updateProgress();
+}
+
+function showComplete() {
+  document.getElementById('screen-game').classList.add('hidden');
+  document.getElementById('screen-complete').classList.remove('hidden');
+  // Big confetti burst
+  for (let i = 0; i < 80; i++) {
+    setTimeout(() => {
+      confettiBurst(Math.random() < 0.5 ? 'CMO' : 'CFO');
+    }, i * 15);
+  }
+}
+
+function showPyramid() {
+  document.getElementById('screen-complete').classList.add('hidden');
+  document.getElementById('screen-pyramid').classList.remove('hidden');
+}
+
+function restart() {
+  state.placements = {};
+  document.getElementById('screen-pyramid').classList.add('hidden');
+  document.getElementById('screen-intro').classList.remove('hidden');
+}
+</script>
+
+</body>
+</html>
